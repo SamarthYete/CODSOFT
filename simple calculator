@@ -1,0 +1,38 @@
+#include <iostream>
+using namespace std;
+
+int main() {
+    char i;
+    float num1,num2,result;
+    cout<<"enter the operators : +, -, *, / :\n";
+    cin>>i;
+    cout<<"enter first number :\n";
+    cin>>num1;
+    cout<<"enter second number :\n";
+    cin>>num2;
+    
+    switch(i){
+        case '+':
+        result=num1+ num2;
+        break;
+        
+        case '-':
+        result=num1 - num2;
+        break;
+        
+        case '*':
+        result=num1 * num2;
+        break;
+        
+        case '/':
+        result=num1 / num2;
+        break;
+        
+        default:
+        cout << "Error , enter the correct operator";
+        
+    }
+    cout<<"Result :"<<result;
+
+    return 0;
+}
