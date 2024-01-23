@@ -1,0 +1,275 @@
+#include <iostream>
+#include <vector>
+#include <ctime>
+#include <iomanip>
+#include <algorithm>
+
+using namespace std;
+
+bool caseInsensitiveCompare(const string& str1, const string& str2) {
+    return str1.size() == str2.size() &&
+           equal(str1.begin(), str1.end(), str2.begin(), [](char a, char b) {
+               return tolower(a) == tolower(b);
+           });
+}
+
+class Book {
+public:
+    string title;
+    string author;
+    string isbn;
+    int bookId;
+    bool available;
+
+    Book(const string& t, const string& a, const string& i, int id)
+        : title(t), author(a), isbn(i), bookId(id), available(true) {}
+
+    void displayInfo() const {
+        cout << "Book ID: " << bookId << ", Title: " << title << ", Author: " << author
+             << ", ISBN: " << isbn << ", Availability: " << (available ? "Available" : "Checked Out") << endl;
+    }
+
+    bool matchesSearchQuery(const string& query) const {
+        return caseInsensitiveCompare(title, query) ||
+               caseInsensitiveCompare(author, query) ||
+               caseInsensitiveCompare(isbn, query);
+    }
+};
+
+class Borrower {
+public:
+    string name;
+    int borrowerId;
+
+    Borrower(const string& n, int id) : name(n), borrowerId(id) {}
+
+    void displayInfo() const {
+        cout << "Borrower ID: " << borrowerId << ", Name: " << name << endl;
+    }
+};
+
+class Transaction {
+public:
+    int transactionId;
+    int bookId;
+    int borrowerId;
+    time_t issueDate;
+    time_t returnDate;
+    double fineAmount;
+
+    Transaction(int transId, int bId, int brId)
+        : transactionId(transId), bookId(bId), borrowerId(brId), returnDate(0), fineAmount(0) {
+        issueDate = time(nullptr);
+    }
+
+    void displayInfo(const vector<Book>& books, const vector<Borrower>& borrowers) const {
+        cout << "Transaction ID: " << transactionId << endl;
+        cout << "Book: ";
+        for (const Book& book : books) {
+            if (book.bookId == bookId) {
+                cout << book.title << ", ";
+                break;
+            }
+        }
+        cout << "Borrower: ";
+        for (const Borrower& borrower : borrowers) {
+            if (borrower.borrowerId == borrowerId) {
+                cout << borrower.name << ", ";
+                break;
+            }
+        }
+        cout << "Issue Date: " << put_time(localtime(&issueDate), "%Y-%m-%d %H:%M:%S");
+        if (returnDate != 0) {
+            cout << ", Return Date: " << put_time(localtime(&returnDate), "%Y-%m-%d %H:%M:%S");
+            cout << ", Fine Amount: $" << fineAmount;
+        }
+        cout << endl;
+    }
+
+    
+    void calculateFine() {
+        const double fineRate = 0.1; 
+        const double maxFine = 10.0; 
+
+        if (returnDate != 0) {
+            time_t currentTime = time(nullptr);
+            double daysOverdue = difftime(returnDate, issueDate) / (60 * 60 * 24);
+
+            fineAmount = min(daysOverdue * fineRate, maxFine);
+        }
+    }
+};
+
+class Library {
+private:
+    vector<Book> books;
+    vector<Borrower> borrowers;
+    vector<Transaction> transactions;
+    int nextBookId;
+    int nextBorrowerId;
+    int nextTransactionId;
+
+public:
+    Library() : nextBookId(1), nextBorrowerId(1), nextTransactionId(1) {}
+
+    void addBook(const string& title, const string& author, const string& isbn) {
+        books.emplace_back(title, author, isbn, nextBookId++);
+        cout << "Book added successfully.\n";
+    }
+
+    void addBorrower(const string& name) {
+        borrowers.emplace_back(name, nextBorrowerId++);
+        cout << "Borrower added successfully.\n";
+    }
+
+    void borrowBook(int bookId, int borrowerId) {
+        for (Book& book : books) {
+            if (book.bookId == bookId && book.available) {
+                book.available = false;
+                transactions.emplace_back(nextTransactionId++, bookId, borrowerId);
+                cout << "Book checked out successfully.\n";
+                return;
+            }
+        }
+        cout << "Book not available or not found. Please check the ID.\n";
+    }
+
+    void returnBook(int transactionId) {
+        for (Transaction& transaction : transactions) {
+            if (transaction.transactionId == transactionId && transaction.returnDate == 0) {
+                transaction.returnDate = time(nullptr);
+                for (Book& book : books) {
+                    if (book.bookId == transaction.bookId) {
+                        book.available = true;
+                        break;
+                    }
+                }
+                transaction.calculateFine(); 
+                cout << "Book returned successfully.\n";
+                return;
+            }
+        }
+        cout << "Transaction not found or book already returned. Please check the ID.\n";
+    }
+
+    void searchBooks(const string& query) const {
+        cout << "Search Results:\n";
+        for (const Book& book : books) {
+            if (book.matchesSearchQuery(query)) {
+                book.displayInfo();
+            }
+        }
+    }
+
+    void displayBooks() const {
+        cout << "Books in the library:\n";
+        for (const Book& book : books) {
+            book.displayInfo();
+        }
+    }
+
+    void displayBorrowers() const {
+        cout << "Borrowers in the library:\n";
+        for (const Borrower& borrower : borrowers) {
+            borrower.displayInfo();
+        }
+    }
+
+    void displayTransactions() const {
+        cout << "Transactions in the library:\n";
+        for (const Transaction& transaction : transactions) {
+            transaction.displayInfo(books, borrowers);
+        }
+    }
+};
+
+int displayMenu() {
+    int choice;
+    cout << "\nMenu:\n";
+    cout << "1. Add Book\n";
+    cout << "2. Add Borrower\n";
+    cout << "3. Borrow a Book\n";
+    cout << "4. Return a Book\n";
+    cout << "5. Search Books\n";
+    cout << "6. Display Books\n";
+    cout << "7. Display Borrowers\n";
+    cout << "8. Display Transactions\n";
+    cout << "9. Exit\n";
+    cout << "Enter your choice (1-9): ";
+    cin >> choice;
+    return choice;
+}
+
+int main() {
+    Library library;
+
+    int choice;
+
+    do {
+        choice = displayMenu();
+
+        switch (choice) {
+            case 1: {
+                string title, author, isbn;
+                cout << "Enter book title: ";
+                cin.ignore();
+                getline(cin, title);
+                cout << "Enter author: ";
+                getline(cin, author);
+                cout << "Enter ISBN: ";
+                getline(cin, isbn);
+                library.addBook(title, author, isbn);
+                break;
+            }
+            case 2: {
+                string name;
+                cout << "Enter borrower name: ";
+                cin.ignore();
+                getline(cin, name);
+                library.addBorrower(name);
+                break;
+            }
+            case 3: {
+                int bookId, borrowerId;
+                cout << "Enter book ID: ";
+                cin >> bookId;
+                cout << "Enter borrower ID: ";
+                cin >> borrowerId;
+                library.borrowBook(bookId, borrowerId);
+                break;
+            }
+            case 4: {
+                int transactionId;
+                cout << "Enter transaction ID for book return: ";
+                cin >> transactionId;
+                library.returnBook(transactionId);
+                break;
+            }
+            case 5: {
+                string searchQuery;
+                cout << "Enter search query: ";
+                cin.ignore();
+                getline(cin, searchQuery);
+                library.searchBooks(searchQuery);
+                break;
+            }
+            case 6:
+                library.displayBooks();
+                break;
+            case 7:
+                library.displayBorrowers();
+                break;
+            case 8:
+                library.displayTransactions();
+                break;
+            case 9:
+                cout << "Exiting the library system. Goodbye!\n";
+                break;
+            default:
+                cout << "Invalid choice. Please enter a number between 1 and 9.\n";
+        }
+
+    } while (choice != 9);
+
+    return 0;
+}
